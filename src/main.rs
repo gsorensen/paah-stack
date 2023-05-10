@@ -1,9 +1,6 @@
 use axum::{
     response::Html,
-    routing::{
-        get,
-        post
-    },
+    routing::get,
     Router,
     extract::Query,
 };
@@ -13,6 +10,60 @@ use tracing_subscriber::{
 };
 use serde::{Serialize, Deserialize};
 use dotenv;
+use askama::Template;
+
+#[derive(Template)]
+#[template(path = "index.html")]
+struct IndexTemplate {}
+
+async fn home() -> Html<String> {
+    let r = IndexTemplate {};
+
+    let template = match r.render() {
+        Ok(rendered_template) => rendered_template,
+        Err(err) => {
+            let err_msg = format!("Failed to render index.html with following error: {}", err);
+            tracing::error!(err_msg);
+            err_msg
+        }
+    };
+
+    tracing::debug!("Serving index.html");
+    Html(template)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Profile {
+    name: String,
+}
+
+#[derive(Template)]
+#[template(path = "pages/profile.html")]
+struct ProfileTemplate {
+    profile: Profile,
+}
+
+async fn profile(Query(profile): Query<Profile>) -> Html<String> {
+    tracing::debug!("Fetching {:?}", profile);
+
+    if profile.name.is_empty() {
+        return Html("".into());
+    }
+
+    let r = ProfileTemplate { profile };
+
+    let template = match r.render() {
+        Ok(rendered_template) => rendered_template,
+        Err(err) => {
+            let err_msg = format!("Failed to render profile with following error: {}", err);
+            tracing::error!(err_msg);
+            err_msg
+        }
+    };
+
+    tracing::debug!("Serving profile");
+    Html(template)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -31,7 +82,11 @@ async fn main() -> Result<(), anyhow::Error> {
     let app = Router::new()
         .route(
             "/",
-            get(|| async { "Hello world" }),
+            get(home),
+        )
+        .route(
+            "/profile",
+            get(profile)
         );
 
     let addr = "0.0.0.0:3000".parse()?;

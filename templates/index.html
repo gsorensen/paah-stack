@@ -12,5 +12,12 @@
 </head>
 
 <body>
-
+  <h1>RAAH example</h1>
+  
+  <input name="name" 
+         placeholder="Begin Typing To Search Users..." 
+         hx-get="/profile" 
+         hx-trigger="keyup changed delay:500ms" 
+         hx-target="#search-results">
+  <div id="search-results"></div>
 </body>
