@@ -2,6 +2,7 @@ use axum::{
     response::Html,
     routing::get,
     Router,
+    Extension,
     extract::Query,
 };
 use tracing_subscriber::{
@@ -11,6 +12,9 @@ use tracing_subscriber::{
 use serde::{Serialize, Deserialize};
 use dotenv;
 use askama::Template;
+use tower_http::cors::{Any, CorsLayer};
+
+use sqlx::postgres::PgPoolOptions;
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -78,6 +82,16 @@ async fn main() -> Result<(), anyhow::Error> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Set up basic CORS
+    let cors = CorsLayer::new().allow_origin(Any);
+
+    // Set up the Postgres db
+    let db_url = std::env::var("DB_URL").expect("Need db url");
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&db_url)
+        .await?;
+
     // Initialise the axum web server app
     let app = Router::new()
         .route(
@@ -87,7 +101,9 @@ async fn main() -> Result<(), anyhow::Error> {
         .route(
             "/profile",
             get(profile)
-        );
+        )
+        .layer(cors)
+        .layer(Extension(pool));
 
     let addr = "0.0.0.0:3000".parse()?;
 
